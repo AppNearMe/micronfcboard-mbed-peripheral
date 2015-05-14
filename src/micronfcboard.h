@@ -1,8 +1,21 @@
-/**
- * \file micronfcboard.h
- * \copyright Copyright (c) AppNearMe Ltd 2015
- * \author Donatien Garnier
+/*
+MicroNFCBoard mbed API
+
+Copyright (c) 2014-2015 AppNearMe Ltd
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
  */
+
 #ifndef SRC_MICRONFCBOARD_H_
 #define SRC_MICRONFCBOARD_H_
 
@@ -24,7 +37,9 @@ public:
 
   bool connected();
 
-  bool type2();
+  bool type2Tag();
+
+  bool type4Emulator();
 
   bool p2p();
 
@@ -40,7 +55,7 @@ public:
 
   bool ndefSuccess();
 
-  void startPolling();
+  void startPolling(bool readerWriter, bool emulator, bool p2p);
 
   void stopPolling();
 
@@ -52,9 +67,9 @@ public:
 
   bool readNdefText(char* text, size_t maxTextLength);
 
-  void writeNdefUri(char* uri);
+  void writeNdefUri(const char* uri);
 
-  void writeNdefText(char* text);
+  void writeNdefText(const char* lang, const char* text);
 
 protected:
   Transport _transport;

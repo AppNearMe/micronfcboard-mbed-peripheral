@@ -23,44 +23,30 @@ MicroNFCBoard nfc(SPI_MOSI, SPI_MISO, SPI_SCK, SPI_CS, D9);
 
 int main() {
     nfc.init();
-    bool b = true;
-    for(int i = 0; i < 10; i++)
-    {
-        nfc.setLeds(b, !b);
-        wait_ms(200);
-        b = !b;
-    }
 
     //Start polling
     while(true)
     {
         printf("Poll\r\n");
-        nfc.startPolling();
+        nfc.startPolling(false, false, true);
 
         while( nfc.polling() );
 
-        if( nfc.type2() )
-        {
-            printf("Connected to type 2 tag\r\n");
-        }
-        else if( nfc.p2p() )
+        if( nfc.p2p() )
         {
             printf("Connected in P2P mode\r\n");
         }
+        else
+        {
+          continue;
+        }
 
         bool ndefRead = false;
-        bool ndefReadingStarted = false;
         while( nfc.connected() )
         {
-            if( !ndefReadingStarted && nfc.ndefReadable() )
-            {
-              printf("Reading tag\r\n");
-              ndefReadingStarted = true;
-              nfc.ndefRead();
-            }
             if( !ndefRead && nfc.ndefPresent() )
             {
-                printf("Got message\r\n");
+                printf("Received message\r\n");
                 char buf[512];
                 if( nfc.readNdefUri(buf, sizeof(buf)) )
                 {

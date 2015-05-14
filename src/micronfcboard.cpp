@@ -1,7 +1,19 @@
-/**
- * \file micronfcboard.cpp
- * \copyright Copyright (c) AppNearMe Ltd 2015
- * \author Donatien Garnier
+/*
+MicroNFCBoard mbed API
+
+Copyright (c) 2014-2015 AppNearMe Ltd
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
  */
 
 #include "micronfcboard.h"
@@ -14,9 +26,12 @@
 #define STATUS_NDEF_BUSY        (1 << 5)
 #define STATUS_NDEF_SUCCESS     (1 << 6)
 
-#define STATUS_TYPE_MASK        (0xFF << 8)
-#define STATUS_TYPE2            (2 << 8)
-#define STATUS_P2P              (8 << 8)
+#define STATUS_TYPE_MASK        (0xFFUL << 8)
+#define STATUS_TYPE2            (2UL << 8)
+#define STATUS_TYPE4            (4UL << 8)
+#define STATUS_P2P              (8UL << 8)
+
+#define STATUS_INITIATOR        (1UL << 16)
 
 #define RECORD_URI  1
 #define RECORD_TEXT 2
@@ -52,10 +67,16 @@ bool MicroNFCBoard::connected()
   return _status & STATUS_CONNECTED;
 }
 
-bool MicroNFCBoard::type2()
+bool MicroNFCBoard::type2Tag()
 {
   updateStatus();
-  return (_status & STATUS_TYPE_MASK) == STATUS_TYPE2;
+  return ((_status & STATUS_TYPE_MASK) == STATUS_TYPE2) && (_status & STATUS_INITIATOR);
+}
+
+bool MicroNFCBoard::type4Emulator()
+{
+  updateStatus();
+  return ((_status & STATUS_TYPE_MASK) == STATUS_TYPE4) && !(_status & STATUS_INITIATOR);
 }
 
 bool MicroNFCBoard::p2p()
@@ -100,14 +121,14 @@ bool MicroNFCBoard::ndefSuccess()
   return _status & STATUS_NDEF_SUCCESS;
 }
 
-void MicroNFCBoard::startPolling()
+void MicroNFCBoard::startPolling(bool readerWriter, bool emulator, bool p2p)
 {
-  _transport.nfcPoll(true);
+  _transport.nfcPoll(readerWriter, emulator, p2p);
 }
 
 void MicroNFCBoard::stopPolling()
 {
-  _transport.nfcPoll(false);
+  _transport.nfcPoll(false, false, false);
 }
 
 void MicroNFCBoard::ndefRead()
@@ -129,7 +150,6 @@ bool MicroNFCBoard::readNdefUri(char* uri, size_t maxUriLength)
 
   size_t recordCount = 0;
   _transport.nfcGetMessageInfo(&recordCount);
-
 
   size_t recordNumber = 0;
   uint16_t info[4];
@@ -246,6 +266,92 @@ bool MicroNFCBoard::readNdefText(char* text, size_t maxTextLength)
   text[0] = '\0';
 
   return true;
+}
+
+void MicroNFCBoard::writeNdefUri(const char* uri)
+{
+  _transport.nfcPrepareMessage(true, false);
+
+  size_t uriPrefixLength = strlen(uri);
+  if( uriPrefixLength > 36 )
+  {
+    uriPrefixLength = 36;
+  }
+
+  uint8_t prefix = 0;
+    
+  _transport.nfcEncodePrefix(&prefix, uri, &uriPrefixLength);
+    
+  if( uriPrefixLength > strlen(uri) )
+  {
+      uriPrefixLength = 0;
+  }
+
+  size_t uriLength = strlen(uri) - uriPrefixLength;
+  uri += uriPrefixLength;
+
+  const uint16_t info[] = {prefix, uriLength};
+  _transport.nfcSetRecordInfo(0, RECORD_URI, info, 2);
+
+  _transport.nfcSetMessageInfo(1);
+  _transport.nfcPrepareMessage(false, true);
+
+  size_t off = 0;
+  while(uriLength > 0)
+  {
+    size_t cpyLength = uriLength;
+    if(cpyLength > 32)
+    {
+      cpyLength = 32;
+    }
+    _transport.nfcSetRecordData(0, 0, off, (uint8_t*)uri, cpyLength);
+    uriLength -= cpyLength;
+    off += cpyLength;
+    uri += cpyLength;
+  }
+}
+
+void MicroNFCBoard::writeNdefText(const char* lang, const char* text)
+{
+  _transport.nfcPrepareMessage(true, false);
+
+  size_t langLength = strlen(lang);
+  size_t textLength = strlen(text);
+
+  const uint16_t info[] = {0 /* UTF-8 */, langLength, textLength};
+  _transport.nfcSetRecordInfo(0, RECORD_TEXT, info, 3);
+
+  _transport.nfcSetMessageInfo(1);
+  _transport.nfcPrepareMessage(false, true);
+
+  size_t off = 0;
+  while(langLength > 0)
+  {
+    size_t cpyLength = langLength;
+    if(cpyLength > 32)
+    {
+      cpyLength = 32;
+    }
+    _transport.nfcSetRecordData(0, 0, off, (uint8_t*)lang, cpyLength);
+    langLength -= cpyLength;
+    off += cpyLength;
+    lang += cpyLength;
+  }
+
+  off = 0;
+  while(textLength > 0)
+  {
+    size_t cpyLength = textLength;
+    if(cpyLength > 32)
+    {
+      cpyLength = 32;
+    }
+    _transport.nfcSetRecordData(0, 1, off, (uint8_t*)text, cpyLength);
+    textLength -= cpyLength;
+    off += cpyLength;
+    text += cpyLength;
+  }
+
 }
 
 

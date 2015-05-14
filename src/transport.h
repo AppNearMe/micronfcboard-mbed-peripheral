@@ -15,6 +15,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
  */
+
 #ifndef SRC_TRANSPORT_H_
 #define SRC_TRANSPORT_H_
 
@@ -34,7 +35,7 @@ public:
 
   uint32_t status();
 
-  void nfcPoll(bool enable);
+  void nfcPoll(bool readerWriter, bool emulator, bool p2p);
 
   void nfcOperation(bool readOp, bool writeOp);
 
@@ -46,17 +47,17 @@ public:
 
   void nfcGetRecordInfo(size_t recordNumber, uint16_t* pType, uint16_t* info, size_t infoCount);
 
-  void nfcSetRecordInfo(size_t recordNumber, uint16_t type, uint16_t* info, size_t infoCount);
+  void nfcSetRecordInfo(size_t recordNumber, uint16_t type, const uint16_t* info, size_t infoCount);
 
   void nfcGetRecordData(size_t recordNumber, size_t item, size_t offset, uint8_t* data, size_t length);
 
-  void nfcSetRecordData(size_t recordNumber, size_t item, size_t offset, uint8_t* data, size_t length);
+  void nfcSetRecordData(size_t recordNumber, size_t item, size_t offset, const uint8_t* data, size_t length);
 
   void nfcPrepareMessage(bool lock, bool generate);
 
   void nfcDecodePrefix(uint8_t prefix, char* data, size_t* pDataLength);
 
-  void nfcEncodePrefix(uint8_t* pPrefix, char* data, size_t dataLength);
+  void nfcEncodePrefix(uint8_t* pPrefix, const char* data, size_t* pDataLength);
 
   void leds(bool led1, bool led2);
 

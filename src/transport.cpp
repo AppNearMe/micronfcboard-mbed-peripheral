@@ -1,7 +1,19 @@
-/**
- * \file transport.cpp
- * \copyright Copyright (c) AppNearMe Ltd 2015
- * \author Donatien Garnier
+/*
+MicroNFCBoard mbed API
+
+Copyright (c) 2014-2015 AppNearMe Ltd
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
  */
 
 #include "transport.h"
@@ -16,8 +28,8 @@
                                            *(((uint8_t*)(addr)) + 1) = ((val) >> 0 ) & 0xFF; } while(0)
 
 //MSB first
-#define READ_UINT32( addr, val ) do{ val = (*(((uint8_t*)(addr)) + 0) << 24 ) \
-                                              | (*(((uint8_t*)(addr)) + 1) << 16 ) \
+#define READ_UINT32( addr, val ) do{ val = (*(uint32_t*)(((uint8_t*)(addr)) + 0) << 24 ) \
+                                              | (*(uint32_t*)(((uint8_t*)(addr)) + 1) << 16 ) \
                                               | (*(((uint8_t*)(addr)) + 2) << 8 ) \
                                               | (*(((uint8_t*)(addr)) + 3) << 0 ); } while(0)
 #define READ_UINT16( addr, val ) do{ val = (*(((uint8_t*)(addr)) + 0) << 8 ) \
@@ -64,9 +76,9 @@ uint32_t Transport::status()
   return status;
 }
 
-void Transport::nfcPoll(bool enable)
+void Transport::nfcPoll(bool readerWriter, bool emulator, bool p2p)
 {
-  uint8_t out[] = {enable?1:0};
+  uint8_t out[] = {(readerWriter?1:0) | (emulator?2:0) | (p2p?4:0)};
   command(Transport::NFC_POLL, out, sizeof(out), NULL, 0);
 }
 
@@ -125,7 +137,7 @@ void Transport::nfcGetRecordInfo(size_t recordNumber, uint16_t* pType, uint16_t*
   }
 }
 
-void Transport::nfcSetRecordInfo(size_t recordNumber, uint16_t type, uint16_t* info, size_t infoCount)
+void Transport::nfcSetRecordInfo(size_t recordNumber, uint16_t type, const uint16_t* info, size_t infoCount)
 {
   uint8_t out[2+2+2*infoCount];
   WRITE_UINT16(&out[0], recordNumber);
@@ -147,7 +159,7 @@ void Transport::nfcGetRecordData(size_t recordNumber, size_t item, size_t offset
   command(Transport::NFC_GET_RECORD_DATA, out, sizeof(out), data, length);
 }
 
-void Transport::nfcSetRecordData(size_t recordNumber, size_t item, size_t offset, uint8_t* data, size_t length)
+void Transport::nfcSetRecordData(size_t recordNumber, size_t item, size_t offset, const uint8_t* data, size_t length)
 {
   uint8_t out[7+length];
   WRITE_UINT16(&out[0], recordNumber);
@@ -173,7 +185,7 @@ void Transport::nfcPrepareMessage(bool lock, bool generate)
   {
     out[0] = 0;
   }
-  command(Transport::NFC_POLL, out, sizeof(out), NULL, 0);
+  command(Transport::NFC_PREPARE_MESSAGE, out, sizeof(out), NULL, 0);
 }
 
 void Transport::nfcDecodePrefix(uint8_t prefix, char* data, size_t* pDataLength)
@@ -190,17 +202,15 @@ void Transport::nfcDecodePrefix(uint8_t prefix, char* data, size_t* pDataLength)
   memcpy(data, &in[2], *pDataLength);
 }
 
-void Transport::nfcEncodePrefix(uint8_t* pPrefix, char* data, size_t dataLength)
+void Transport::nfcEncodePrefix(uint8_t* pPrefix, const char* data, size_t* pDataLength)
 {
-  uint8_t out[2 + dataLength];
-  uint8_t in[1];
-
-  WRITE_UINT16(&out[0], dataLength);
-  memcpy(data, &out[2], dataLength);
-
+  uint8_t out[2 + *pDataLength];
+  uint8_t in[3];
+  WRITE_UINT16(&out[0], *pDataLength);
+  memcpy(&out[2], data, *pDataLength);
   command(Transport::NFC_ENCODE_PREFIX, out, sizeof(out), in, sizeof(in));
-
   *pPrefix = in[0];
+  READ_UINT16(&in[1], *pDataLength);
 }
 
 void Transport::leds(bool led1, bool led2)
